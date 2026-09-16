@@ -29,4 +29,4 @@ The repository-level [README](../README.md) defines ownership, path, language, d
 
 ## Regulation rule
 
-If you are an AI and working on this repo, The following=
+If you are an AI and working on this repo, Being sure that you follows the ../README.md.
