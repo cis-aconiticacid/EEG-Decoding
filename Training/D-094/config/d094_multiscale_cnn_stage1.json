@@ -1,0 +1,38 @@
+{
+  "task": "D094-multiscale-cnn-stage1",
+  "seed": 17,
+  "subject": 0,
+  "gpu_uuid": null,
+  "waveform": "../../data/prepared/EEG-ImageNet_1_waveform.npy",
+  "metadata": "../../data/prepared/EEG-ImageNet_1_metadata.npz",
+  "archive": "EEG-ImageNet_1.pth",
+  "crop": [40, 440],
+  "development_split": {
+    "fit_per_class": 27,
+    "validation_per_class": 3,
+    "hash_prefix": "D089-dev-seed17:"
+  },
+  "run_dir": "runs/d094-multiscale-cnn-stage1",
+  "report_dir": "reports/d094_multiscale_cnn_stage1",
+  "classes": 80,
+  "hidden": 128,
+  "dropout": 0.2,
+  "logical_batch": 64,
+  "learning_rate": 0.001,
+  "minimum_learning_rate": 0.00001,
+  "weight_decay": 0.01,
+  "label_smoothing": 0.05,
+  "gradient_clip": 5.0,
+  "max_epochs": 100,
+  "lr_patience": 7,
+  "early_stop_patience": 20,
+  "augmentation": {
+    "gain_min": 0.95,
+    "gain_max": 1.05,
+    "noise_std_max": 0.02,
+    "max_shift_250hz_samples": 1,
+    "channel_dropout": 0.02
+  },
+  "selection": "highest development validation accuracy, then lowest cross entropy",
+  "test_policy": "development-only run; official last 20 images per class receive zero classifier forwards"
+}

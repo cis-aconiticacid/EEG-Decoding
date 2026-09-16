@@ -1,0 +1,15 @@
+{
+  "task": "D063", "archive": "EEG-ImageNet_1.pth",
+  "manifest": "../../data/generated/trial_manifest.csv", "channel_map": "config/channel_map.csv",
+  "gpu_uuid": null,
+  "lock_roots": ["runs/gpu-lock-local", ".runtime/gpu-locks"],
+  "seeds": [17, 23, 41], "arms": ["raw-only", "frequency-only", "raw+frequency"],
+  "epochs": 70, "batch_size": 64, "lr": 0.0003, "min_lr": 0.00003,
+  "weight_decay": 0.001, "clip": 1.0, "dropout": 0.1,
+  "sample_rate": 1000, "crop": [40, 440], "subject": 0,
+  "frequency_definition": {"window": "periodic Hann", "n_fft": 400, "bins": [1, 32], "hz": [2.5, 80], "scaling": "one-sided density: 2*abs(rfft)^2/(fs*sum(window^2))", "log_base": 10, "clamp_min": 1e-30},
+  "normalization": {"raw": "per electrode over train trials and time", "frequency": "per electrode per bin over train trials", "std_correction": 0, "std_min": 1e-6},
+  "model": {"dim": 128, "heads": 4, "depth": 2, "ffn": 384, "norm": "post-norm", "coordinate_columns": "{x,y,z}_m_template_fit", "fusion": "sum/sqrt(2)", "scope": "independent classification probe, not RAEv2"},
+  "report_dir": "reports/d063_local_frequency", "run_dir": "runs/d063-local-frequency"
+}
+

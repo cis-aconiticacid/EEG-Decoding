@@ -1,0 +1,18 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\usetikzlibrary{arrows.meta}
+\begin{document}
+\begin{tikzpicture}[block/.style={draw=blue!55!black,fill=blue!4,rounded corners=3pt,align=center,text width=4.35cm,minimum height=2.7cm,inner sep=6pt,font=\small},arrow/.style={-{Stealth[length=2.5mm]},line width=1pt,draw=blue!65!black}]
+\node[font=\Large\bfseries,anchor=south west] at (-2.1,2.0) {D-094: Multi-Scale Temporal/Spatial CNN};
+\node[block] (n0) at (0.0,0) {EEG 62 x 400\\40--440 ms};
+\node[block] (n1) at (5.3,0) {Anti-aliased 250-Hz resampling\\62 x 100};
+\node[block] (n2) at (10.6,0) {Per-electrode kernels\\36/68/132/260 ms};
+\node[block] (n3) at (15.899999999999999,0) {Spatial 62-to-64 convolution\\2 depthwise temporal blocks};
+\node[block] (n4) at (21.2,0) {10 segments: mean + variance\\128-hidden MLP to 80 classes};
+\draw[arrow] (n0) -- (n1);
+\draw[arrow] (n1) -- (n2);
+\draw[arrow] (n2) -- (n3);
+\draw[arrow] (n3) -- (n4);
+\end{tikzpicture}
+\end{document}

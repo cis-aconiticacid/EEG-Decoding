@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eegdecoding-experiments"
+version = "0.1.0"
+description = "Auditable EEG-ImageNet model and diagnostic experiments"
+requires-python = ">=3.11"
+dependencies = [
+  "torch>=2.4",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "safetensors>=0.4",
+  "huggingface-hub>=0.23",
+  "mne>=1.8",
+  "matplotlib>=3.8",
+  "scikit-learn>=1.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eegdecoding"]
+
+[tool.pytest.ini_options]
+testpaths = ["Training"]

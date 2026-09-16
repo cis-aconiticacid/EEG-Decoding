@@ -1,0 +1,32 @@
+.venv/
+.venv-wsl-flash/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest-tmp*/
+.test-tmp/
+.ruff_cache/
+.runtime/
+
+# Local-only workspace trees. None of these directories are published.
+data/
+checkpoints/
+private/
+Trash/
+
+# Generated model artifacts and experiment run products.
+artifacts/
+outputs/
+reports/
+
+# Re-creatable external checkouts and run products.
+vendor/
+runs/
+locks/
+*.partial
+
+# Credentials and local machine state must never enter Git.
+.env
+*.pem
+*.key
+.ssh/

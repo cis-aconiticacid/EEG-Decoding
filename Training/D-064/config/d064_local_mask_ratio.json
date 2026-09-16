@@ -1,0 +1,22 @@
+{
+  "task": "D064", "execution": "A100 Linux only; launch controlled by main agent",
+  "archive": "EEG-ImageNet_1.pth", "manifest": "../../data/generated/trial_manifest.csv",
+  "channel_map": "config/channel_map.csv",
+  "gpu_uuid": null, "gpu_physical_index": 0,
+  "lock_root": "../runs/gpu-lock-remote", "queue_partition": "gpu0",
+  "report_dir": "reports/d064_local_mask_ratio", "run_dir": "runs/d064-local-mask-ratio",
+  "seeds": [17, 23, 41], "arms": ["mask15", "mask30", "mask45", "mask60", "mask75", "schedule15to60"],
+  "epochs": 70, "batch_size": 64, "accumulation": 1,
+  "lr": 0.0003, "min_lr": 0.00003, "warmup_epochs": 3, "weight_decay": 0.001, "clip": 1.0,
+  "precision": "FP32", "tf32": false,
+  "subject": 0, "fit_per_class": 24, "internalval_per_class": 6,
+  "crop": [40, 440], "fs": 1000, "n_fft": 400,
+  "psd": {"window": "periodic Hann", "bins": [1, 32], "scaling": "one-sided density", "log_base": 10, "clamp_min": 1e-30},
+  "normalization": {"axes": "fit trials only, separately per electrode per frequency bin", "std_correction": 0, "std_min": 1e-6},
+  "model": {"patch_width": 4, "tokens": 496, "dim": 128, "heads": 4, "depth": 2, "ffn": 384, "dropout": 0.1, "activation": "gelu", "norm": "post-norm", "attention": "full bidirectional", "mask_replacement": "learned 128-vector", "coordinates": "{x,y,z}_m_template_fit; center and median distance scale"},
+  "mask_rounding": "floor(496*ratio+0.5)",
+  "schedule": {"hold_15_through_epoch": 7, "linear_end_epoch": 49, "hold_60_through_epoch": 70},
+  "validation_bank_seed": 6402026, "validation_ratios": [0.3, 0.6, 0.75],
+  "probe": {"epochs": 100, "batch_size": 64, "lr": 0.001, "weight_decay": 0.001, "dropout": 0.0, "classes": 80, "encoder": "frozen, eval, no masks, 496-token mean pool", "feature_normalization": "none", "clip": null},
+  "checkpoint_epochs": [10, 20, 30, 40, 50, 60, 70]
+}

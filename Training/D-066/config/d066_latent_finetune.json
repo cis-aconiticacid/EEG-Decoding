@@ -1,0 +1,14 @@
+{
+  "task":"D066", "seeds":[17,23,41], "subject":0,
+  "epochs":70, "batch_size":64, "checkpoint_epochs":[10,20,30,40,50,60,70],
+  "encoder_lr_multiplier":0.1, "head_lr_start":0.00003, "head_lr_peak":0.0003, "head_lr_end":0.00003,
+  "warmup_epochs":3, "schedule":"epoch-wise cosine after warmup", "optimizer":"new AdamW", "weight_decay":0.001,
+  "gradient_clip":1, "precision":"FP32 TF32 off", "loss":"image latent MSE + 0.1 symmetric image contrastive", "temperature":0.07,
+  "source":"D065 mask60 epoch140; seed matched", "normalization":"D064 fit1920 statistics unchanged",
+  "train_count":2400, "test_count":1600, "split":"subject0 per-class first30/last20 source order",
+  "image_head":"256 learned queries; 16x16 fixed grid; 2 QueryBlocks dim128 heads4; 128->512->1024 projector",
+  "target_dir":"../../data/derived/d057-raev2-targets", "teacher_config":"config/d057_raev2_latent_s17.json",
+  "report_dir":"reports/d066_latent_finetune", "run_dir":"runs/d066-latent-finetune",
+  "test_policy":"epoch70 once per seed; no test tuning or early stopping",
+  "readout":"nearest latent in subject0 1600 test-image gallery; image-assisted classification"
+}

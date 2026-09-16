@@ -1,0 +1,32 @@
+# Training Experiments
+
+Every numbered directory is a self-contained public experiment record with English documentation, local configuration, runnable source where available, and a TeX-rendered architecture diagram. `D` identifies a training/development experiment, while `A` identifies an analysis experiment. Shared raw data, generated runs, and checkpoints are intentionally excluded from version control.
+
+## Experiment index
+
+| Experiment | Architecture / study | Training objective | Subject scope | Temporal-effect control | Status |
+|---|---|---|---|---|---|
+| [D-061](D-061/README.md) | Multi-Subject Paper-Latent Alignment | Image-latent MSE plus 0.1 symmetric contrastive loss; not cross-entropy classification. | Sixteen subjects, fitted independently for each subject/task combination. | Not excluded: training uses the first 30 source-order images per class and evaluation uses the last 20. | Completed historical runs are documented. |
+| [D-063](D-063/README.md) | Raw and Local-Frequency Classification Probe | Ordinary 80-way cross-entropy classification. | Subject 0 only. | Not excluded: the first 30 source-order images per class train the probe and the last 20 form the test set. | Three-arm, three-seed probe completed. |
+| [D-064](D-064/README.md) | Masked Frequency Pretraining and Linear Probe | Masked reconstruction pretraining followed by an 80-way linear probe; probe training uses cross-entropy. | Subject 0 only. | Partially controlled inside the first 30: positions 0--23 fit and 24--29 validate; the official last 20 are excluded from evaluation. | Mask-ratio and seed sweep completed. |
+| [D-066](D-066/README.md) | Latent Fine-Tuning from a Masked EEG Encoder | Image-latent MSE plus 0.1 symmetric contrastive loss; not cross-entropy classification. | Subject 0 only, with three random seeds. | Not excluded: the first 30 source-order images per class train the model and the last 20 are evaluated. | Three seed runs completed at epoch 70. |
+| [A-077](A-077/README.md) | Pairwise Identity and Temporal-Position Diagnostics | RBF SVC and random-forest binary classification; no neural embedding objective. | All sixteen subjects. | Mixed: T1 uses image-disjoint 48/16/16 splits; T3 deliberately measures position-order effects. T2 is omitted because no session label exists. | T1 and T3 completed; T2 intentionally unavailable. |
+| [D-078](D-078/README.md) | A0--A3 Continuation and Augmentation Study | Image-latent MSE plus 0.1 symmetric contrastive loss; not cross-entropy classification. | Subject 0 only. | Not excluded: the historical first-30/last-20 source-order split is retained. | Four warm-start continuation arms completed through epoch 120. |
+| [D-079](D-079/README.md) | Coordinate and Early-Fusion Ablation | Image-latent MSE plus 0.1 symmetric contrastive loss; not cross-entropy classification. | Subject 0 only. | Not excluded: the historical first-30/last-20 source-order split is retained. | B0/B1/B2 warm-start arms completed through epoch 120. |
+| [D-080](D-080/README.md) | Coordinate Ablations from Random Initialization | Image-latent MSE plus 0.1 symmetric contrastive loss; not cross-entropy classification. | Subject 0 only. | Not excluded: training uses the first 30 source-order images per class and diagnostics use the last 20. | Three fixed 70-epoch arms completed. |
+| [D-083](D-083/README.md) | Synthetic CUDA Feasibility Check | Stage-A masked reconstruction and Stage-B latent alignment on synthetic tensors. | No real subject data; synthetic feasibility only. | Not applicable: no EEG-ImageNet train/test split is used. | Feasibility check passed; this is not an accuracy experiment. |
+| [D-085](D-085/README.md) | Exploratory Riemannian SVM Record | Covariance features, tangent-space projection, and SVM classification. | Per-subject evaluation on the exploratory external dataset. | Not applicable to the EEG-ImageNet first-30/last-20 protocol. | Historical record only; no public runnable source is retained in this folder. |
+| [D-088](D-088/README.md) | Convolution-Routing Comparison | Masked JEPA-style pretraining, then 80-way cross-entropy classification. | Subject 0 only. | Not excluded: 27/3 development trials come from the first 30 source-order images; the last 20 form a one-time test. | Four-route benchmark completed. |
+| [D-089](D-089/README.md) | Masked Waveform Pretraining and Retrieval | Masked waveform value/slope loss followed by latent MSE, cosine, and contrastive losses; no classification head. | Subject 0 only. | Not excluded: 27/3 development trials are drawn from the first 30; the official last 20 are sealed until final evaluation. | Checkpointed implementation; no public scalar result record. |
+| [D-092](D-092/README.md) | Sample-Efficient Latent Post-Training | Latent MSE, cosine, contrastive, and consistency losses; no classification head. | Subject 0 only. | Development only: 27/3 trials from the first 30; official last-20 EEG is never forwarded. | Checkpointed implementation; no public scalar result record. |
+| [D-093](D-093/README.md) | Stage-1 Classification Baseline | 80-way cross-entropy with label smoothing 0.05. | Subject 0 only. | Not excluded: 27/3 development trials are drawn from the first 30, followed by refit on all 30 and one test on the last 20. | Completed with one official test evaluation. |
+| [D-094](D-094/README.md) | Multi-Scale Temporal/Spatial CNN | 80-way cross-entropy with label smoothing 0.05. | Subject 0 only. | Development only: 27/3 trials from the first 30; the official last 20 receive zero classifier forwards. | Development run completed; official test remains sealed. |
+| [D-095](D-095/README.md) | Hybrid Temporal/Spatial Classifier | Ordinary 80-way cross-entropy without label smoothing. | Subject 0 only. | Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test. | Fixed 100-epoch baseline and ablations completed. |
+
+## Maintenance
+
+The repository-level [README](../README.md) defines ownership, path, language, data, checkpoint, and documentation rules. Run `python scripts/render_training_documentation.py` after changing this registry or any architecture diagram.
+
+## Regulation rule
+
+If you are an AI and working on this repo, The following=

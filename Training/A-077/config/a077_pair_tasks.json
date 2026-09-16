@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "experiment": "A077_pair_tasks",
+  "seed": 77017,
+  "source": {
+    "files": ["EEG-ImageNet_1.pth", "EEG-ImageNet_2.pth"],
+    "expected_records": 63850,
+    "expected_subjects": 16,
+    "session_policy": "require an explicit true acquisition-session field; never infer it from part, class block, source index, or position"
+  },
+  "split": {
+    "unit": "image category label_index; every image and its cross-subject records remain in the category split",
+    "counts": {"train": 48, "validation": 16, "test": 16},
+    "seed": 77017
+  },
+  "features": {
+    "crop_samples": [40, 440],
+    "sampling_rate_hz": 1000,
+    "window": "periodic Hann",
+    "demean_each_trial_channel": true,
+    "representation": "log10 one-sided PSD",
+    "frequency_bins_hz": {"first": 2.5, "step": 2.5, "last": 80.0, "count": 32},
+    "shape_per_trial": [62, 32],
+    "pair_transform": "absolute difference of corresponding electrode-frequency powers",
+    "position_encoding": "fixed feature columns preserve electrode and frequency identity; no subject, session, source index, class-block position, or absolute recording position enters model inputs"
+  },
+  "pair_tasks": {
+    "T1_same_person": {
+      "positive": "two different images from one subject, same category",
+      "negative": "the same matched two image IDs and category, split across two different subjects",
+      "matching": "each positive and negative pair shares exactly the same unordered image pair and category",
+      "pair_caps_by_split": {"train": 8000, "validation": 2000, "test": 2000},
+      "class_balance": "exact 1:1"
+    },
+    "T2_same_person_same_true_session": {
+      "positive": "same subject and same explicitly recorded acquisition session",
+      "negative": "same subject and different explicitly recorded acquisition sessions",
+      "status": "unavailable until true session labels and trial mapping are present",
+      "pair_caps_by_split": {"train": 8000, "validation": 2000, "test": 2000}
+    },
+    "T3_adjacent_within_person_category": {
+      "positive": "same subject and category, source-position gap 1",
+      "negative": "same subject and category, source-position gap 7, matched midpoint",
+      "positive_positions": "k, k+1",
+      "negative_positions": "k-3, k+4",
+      "eligible_center_k": [3, 45],
+      "time_source": "class-block source order proxy; no independent timestamp available",
+      "pair_caps_by_split": {"train": 8000, "validation": 2000, "test": 2000},
+      "class_balance": "exact 1:1"
+    }
+  },
+  "models": {
+    "svm": {
+      "kernel": "RBF",
+      "C_candidates": [0.1, 1.0, 10.0],
+      "gamma": "1 / transformed feature dimension",
+      "kernel_implementation": "BLAS-computed precomputed Gram matrices; verify against sklearn RBF decision_function",
+      "standardization": "fit separately on the model's training pairs; final model refits preprocessing on train plus validation"
+    },
+    "random_forest": {
+      "n_estimators": 300,
+      "min_samples_leaf_candidates": [2, 8],
+      "max_features": "sqrt",
+      "random_state": 77017,
+      "n_jobs": 4
+    },
+    "selection": {
+      "primary_metric": "validation balanced accuracy",
+      "tie_break": "validation ROC AUC",
+      "test_use": "one final evaluation after model selection and train-plus-validation refit",
+      "models_share_pair_manifest": true,
+      "threads_max": 4
+    },
+    "pca": "not enabled in the first run; any later PCA must be fit only on the relevant training pair set"
+  },
+  "execution": {
+    "local_only": true,
+    "serial_models": true,
+    "hidden_windows_process": true,
+    "persistent_logs_and_state": true,
+    "resumable_at_completed_model_or_candidate_boundaries": true,
+    "pre_run_review_required": true,
+    "required_review_file": "reports/a077_pair_tasks/PRE_RUN_REVIEW.md",
+    "required_review_decision": "PASS"
+  }
+}
