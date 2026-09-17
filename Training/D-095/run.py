@@ -51,6 +51,16 @@ from model import (  # noqa: E402
 
 
 CONFIG = EXPERIMENT_DIR / "config/config.json"
+GIB = 1024**3
+EXPECTED_SUBJECT = 0
+EXPECTED_CROP = [40, 440]
+EXPECTED_CLASSES = 80
+EXPECTED_TRAIN_SAMPLES = 2400
+EXPECTED_TEST_SAMPLES = 1600
+TEST_FORWARD_SAMPLES_BEFORE_EVALUATION = 0
+
+Config = dict[str, Any]
+PreparedData = dict[str, Any]
 
 
 def sha256(path: Path) -> str:
@@ -93,6 +103,7 @@ def set_seed(seed: int) -> None:
 
 
 def load_coordinates(cfg: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+    """Load, validate, normalize, and fingerprint the electrode coordinates."""
     path = EXPERIMENT_DIR / cfg["channel_map"]
     with path.open(newline="", encoding="utf-8-sig") as stream:
         rows = sorted(csv.DictReader(stream), key=lambda row: int(row["tensor_index"]))
@@ -121,7 +132,8 @@ def load_coordinates(cfg: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]
     }
 
 
-def prepare_data(cfg: dict[str, Any], model: D095HybridClassifier) -> dict[str, Any]:
+def prepare_data(cfg: Config, model: D095HybridClassifier) -> PreparedData:
+    """Load subject data and fit input normalization on the training split only."""
     data = load_subject_data(cfg)
     train_indices = data["official_train"]
     test_indices = data["test"]
@@ -157,6 +169,7 @@ def prepare_data(cfg: dict[str, Any], model: D095HybridClassifier) -> dict[str, 
 
 
 def augment(value: torch.Tensor, cfg: dict[str, Any]) -> torch.Tensor:
+    """Apply the configured waveform augmentations to one training batch."""
     settings = cfg["augmentation"]
     if (
         settings["gain_min"] == 1.0
@@ -202,6 +215,32 @@ def learning_rate(cfg: dict[str, Any], epoch: int) -> float:
         return base * epoch / max(1, warmup)
     progress = (epoch - warmup) / max(1, epochs - warmup)
     return minimum + 0.5 * (base - minimum) * (1.0 + math.cos(math.pi * progress))
+
+
+def build_model(
+    coordinates: torch.Tensor, cfg: Config, device: torch.device
+) -> D095HybridClassifier:
+    """Construct the D095 classifier from the experiment configuration."""
+    return D095HybridClassifier(
+        coordinates,
+        classes=cfg["classes"],
+        dropout=cfg["block_dropout"],
+        head_dropout=cfg["head_dropout"],
+        use_frequency=cfg["frequency_branch"],
+        excluded_band_hz=cfg.get("excluded_band_hz"),
+        post_fusion_projection=cfg.get("post_fusion_projection", False),
+    ).to(device)
+
+
+def build_optimizer(
+    model: D095HybridClassifier, cfg: Config
+) -> torch.optim.Optimizer:
+    """Create the optimizer used by both probing and actual training."""
+    return torch.optim.AdamW(
+        model.parameters(),
+        lr=cfg["learning_rate"],
+        weight_decay=cfg["weight_decay"],
+    )
 
 
 def train_epoch(
@@ -313,25 +352,18 @@ def evaluate_test_once(
 
 def probe_microbatch(
     coordinates: torch.Tensor,
-    cfg: dict[str, Any],
+    cfg: Config,
     device: torch.device,
 ) -> dict[str, Any]:
+    """Find the largest candidate microbatch under the configured memory limit."""
     failures = []
     for candidate in cfg["microbatch_candidates"]:
         candidate = min(int(candidate), int(cfg["logical_batch"]))
         logits = None
         loss = None
         set_seed(int(cfg["seed"]) + 9500 + candidate)
-        model = D095HybridClassifier(
-            coordinates,
-            classes=cfg["classes"],
-            dropout=cfg["block_dropout"],
-            head_dropout=cfg["head_dropout"],
-            use_frequency=cfg["frequency_branch"],
-            excluded_band_hz=cfg.get("excluded_band_hz"),
-            post_fusion_projection=cfg.get("post_fusion_projection", False),
-        ).to(device)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"])
+        model = build_model(coordinates, cfg, device)
+        optimizer = build_optimizer(model, cfg)
         waveform = torch.randn(candidate, CHANNELS, PATCHES * PATCH_SAMPLES, device=device)
         target = torch.arange(candidate, device=device) % cfg["classes"]
         try:
@@ -344,11 +376,11 @@ def probe_microbatch(
             optimizer.step()
             torch.cuda.synchronize(device)
             peak = int(torch.cuda.max_memory_allocated(device))
-            if peak <= float(cfg["peak_memory_limit_gib"]) * (1024 ** 3):
+            if peak <= float(cfg["peak_memory_limit_gib"]) * GIB:
                 return {
                     "microbatch": candidate,
                     "peak_memory_bytes": peak,
-                    "peak_memory_gib": peak / (1024 ** 3),
+                    "peak_memory_gib": peak / GIB,
                     "failed_larger_candidates": failures,
                 }
             failures.append({"microbatch": candidate, "reason": "peak_limit", "peak_memory_bytes": peak})
@@ -447,55 +479,73 @@ def save_checkpoint(
     os.replace(temporary, path)
 
 
-def main() -> int:
+def parse_args() -> argparse.Namespace:
+    """Parse the two intentionally exclusive runner modes."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, default=CONFIG)
-    parser.add_argument("--smoke", action="store_true")
-    parser.add_argument("--run", action="store_true")
+    parser.add_argument("--config", type=Path, default=CONFIG, help="JSON experiment configuration")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--smoke", action="store_true", help="run one training update")
+    mode.add_argument("--run", action="store_true", help="train and evaluate the endpoint")
     args = parser.parse_args()
-    if args.smoke == args.run:
-        parser.error("choose exactly one of --smoke or --run")
+    return args
 
-    config_path = args.config.resolve()
-    cfg = json.loads(config_path.read_text(encoding="utf-8"))
-    if cfg["subject"] != 0 or cfg["crop"] != [40, 440] or cfg["classes"] != 80:
+
+def load_config(path: Path) -> Config:
+    """Load the JSON configuration and validate the fixed D095 contract."""
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    if (
+        cfg["subject"] != EXPECTED_SUBJECT
+        or cfg["crop"] != EXPECTED_CROP
+        or cfg["classes"] != EXPECTED_CLASSES
+    ):
         raise AssertionError("D095 subject/crop/class contract differs")
     if cfg["label_smoothing"] != 0.0:
         raise AssertionError("D095 requires ordinary cross entropy with label_smoothing=0")
+    return cfg
+
+
+def configure_cuda(cfg: Config) -> torch.device:
+    """Validate the configured GPU lock and enable the D095 CUDA settings."""
     if os.environ.get("CUDA_VISIBLE_DEVICES") != cfg["gpu_uuid"] or not torch.cuda.is_available():
         raise RuntimeError("D095 must use the configured local GPU UUID")
-
-    device = torch.device("cuda")
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cudnn.benchmark = True
+    return torch.device("cuda")
+
+
+def prepare_output_dirs(cfg: Config) -> tuple[Path, Path]:
+    """Create and return the run and report directories."""
     run_dir = EXPERIMENT_DIR / cfg["run_dir"]
     report_dir = EXPERIMENT_DIR / cfg["report_dir"]
     run_dir.mkdir(parents=True, exist_ok=True)
     report_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir, report_dir
 
-    coordinates, coordinate_record = load_coordinates(cfg)
-    microbatch_record = probe_microbatch(coordinates, cfg, device)
-    set_seed(cfg["seed"])
-    model = D095HybridClassifier(
-        coordinates,
-        classes=cfg["classes"],
-        dropout=cfg["block_dropout"],
-        head_dropout=cfg["head_dropout"],
-        use_frequency=cfg["frequency_branch"],
-        excluded_band_hz=cfg.get("excluded_band_hz"),
-        post_fusion_projection=cfg.get("post_fusion_projection", False),
-    ).to(device)
-    prepared = prepare_data(cfg, model)
+
+def validate_split(prepared: PreparedData) -> dict[str, Any]:
+    """Verify the fixed first-30/last-20 split before writing any artifacts."""
     split = split_evidence(prepared["data"])
-    if split["official_train"] != 2400 or split["test"] != 1600:
+    if split["official_train"] != EXPECTED_TRAIN_SAMPLES or split["test"] != EXPECTED_TEST_SAMPLES:
         raise AssertionError("D095 first30/last20 split count differs")
-    if split["per_class"]["official_train"] != [30] * 80 or split["per_class"]["test"] != [20] * 80:
+    if (
+        split["per_class"]["official_train"] != [30] * EXPECTED_CLASSES
+        or split["per_class"]["test"] != [20] * EXPECTED_CLASSES
+    ):
         raise AssertionError("D095 per-class first30/last20 split differs")
     if split["official_train_test_image_overlap"] != 0:
         raise AssertionError("D095 train/test image IDs overlap")
+    return split
 
-    contract = {
+
+def build_contract(
+    cfg: Config,
+    config_path: Path,
+    coordinate_record: dict[str, Any],
+    split: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the provenance contract stored in checkpoints and reports."""
+    return {
         "excluded_band_hz": cfg.get("excluded_band_hz"),
         "exclusion_protocol": cfg.get("exclusion_protocol"),
         "post_fusion_projection": cfg.get("post_fusion_projection", False),
@@ -509,7 +559,19 @@ def main() -> int:
         "test_hash": split["test_hash"],
         "layout": "Training/D-095",
     }
-    preflight = {
+
+
+def build_preflight(
+    cfg: Config,
+    model: D095HybridClassifier,
+    prepared: PreparedData,
+    coordinate_record: dict[str, Any],
+    split: dict[str, Any],
+    contract: dict[str, Any],
+    microbatch_record: dict[str, Any],
+) -> dict[str, Any]:
+    """Collect the read-only checks and fingerprints emitted before training."""
+    return {
         "status": "PASS",
         "contract": contract,
         "split": split,
@@ -527,51 +589,77 @@ def main() -> int:
             "pinned": prepared["pinned"],
         },
         "microbatch_probe": microbatch_record,
-        "test_classifier_forward_samples": 0,
+        "test_classifier_forward_samples": TEST_FORWARD_SAMPLES_BEFORE_EVALUATION,
     }
-    atomic_json(report_dir / "preflight.json", preflight)
 
-    microbatch = int(microbatch_record["microbatch"])
-    if args.smoke:
-        model.train()
-        optimizer = torch.optim.AdamW(model.parameters(), lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"])
-        batch = prepared["train"][:microbatch].to(device)
-        target = prepared["train_labels"][:microbatch].to(device)
-        optimizer.zero_grad(set_to_none=True)
-        with torch.autocast("cuda", dtype=torch.bfloat16):
-            logits, auxiliary = model.forward_standardized(batch, return_aux=True)
-            loss = F.cross_entropy(logits.float(), target, label_smoothing=0.0)
-        loss.backward()
-        optimizer.step()
-        gate = auxiliary["frequency_gate"]
-        smoke = {
-            "status": "PASS",
-            "loss": float(loss.detach()),
-            "logits_shape": list(logits.shape),
-            "finite": bool(torch.isfinite(logits).all()),
-            "frequency_gate_mean_before_first_update": None if gate is None else float(gate.detach().mean()),
-            "spatial_weight_sum_max_error": float(
-                (auxiliary["spatial_pooling_weights"].detach().float().sum(1) - 1.0).abs().max()
-            ),
-            "microbatch": microbatch,
-            "test_classifier_forward_samples": 0,
-        }
-        atomic_json(report_dir / "smoke.json", smoke)
-        print(json.dumps(smoke, ensure_ascii=False, sort_keys=True), flush=True)
-        return 0
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"]
-    )
+def run_smoke(
+    model: D095HybridClassifier,
+    prepared: PreparedData,
+    cfg: Config,
+    device: torch.device,
+    microbatch: int,
+    report_dir: Path,
+) -> int:
+    """Run one forward/backward/update cycle and write the smoke report."""
+    model.train()
+    optimizer = build_optimizer(model, cfg)
+    batch = prepared["train"][:microbatch].to(device)
+    target = prepared["train_labels"][:microbatch].to(device)
+    optimizer.zero_grad(set_to_none=True)
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        logits, auxiliary = model.forward_standardized(batch, return_aux=True)
+        loss = F.cross_entropy(logits.float(), target, label_smoothing=0.0)
+    loss.backward()
+    optimizer.step()
+
+    gate = auxiliary["frequency_gate"]
+    smoke = {
+        "status": "PASS",
+        "loss": float(loss.detach()),
+        "logits_shape": list(logits.shape),
+        "finite": bool(torch.isfinite(logits).all()),
+        "frequency_gate_mean_before_first_update": (
+            None if gate is None else float(gate.detach().mean())
+        ),
+        "spatial_weight_sum_max_error": float(
+            (auxiliary["spatial_pooling_weights"].detach().float().sum(1) - 1.0).abs().max()
+        ),
+        "microbatch": microbatch,
+        "test_classifier_forward_samples": TEST_FORWARD_SAMPLES_BEFORE_EVALUATION,
+    }
+    atomic_json(report_dir / "smoke.json", smoke)
+    print(json.dumps(smoke, ensure_ascii=False, sort_keys=True), flush=True)
+    return 0
+
+
+def train_model(
+    model: D095HybridClassifier,
+    prepared: PreparedData,
+    cfg: Config,
+    device: torch.device,
+    microbatch: int,
+    run_dir: Path,
+    report_dir: Path,
+    contract: dict[str, Any],
+) -> tuple[list[dict[str, Any]], float]:
+    """Train for the fixed budget, checkpointing and logging every epoch."""
+    optimizer = build_optimizer(model, cfg)
     generator = torch.Generator().manual_seed(cfg["seed"] + 9501)
     curve_path = run_dir / "train_curve.jsonl"
     if curve_path.exists():
         raise FileExistsError(f"refusing to append to existing D095 curve: {curve_path}")
+
     started = time.perf_counter()
-    history = []
-    atomic_json(report_dir / "status.json", {
-        "status": "training", "epoch": 0, "test_classifier_forward_samples": 0
-    })
+    history: list[dict[str, Any]] = []
+    atomic_json(
+        report_dir / "status.json",
+        {
+            "status": "training",
+            "epoch": 0,
+            "test_classifier_forward_samples": TEST_FORWARD_SAMPLES_BEFORE_EVALUATION,
+        },
+    )
     for epoch in range(1, int(cfg["epochs"]) + 1):
         lr = learning_rate(cfg, epoch)
         for group in optimizer.param_groups:
@@ -591,7 +679,7 @@ def main() -> int:
             "train": metrics,
             "learning_rate": lr,
             "elapsed_seconds": time.perf_counter() - started,
-            "test_classifier_forward_samples": 0,
+            "test_classifier_forward_samples": TEST_FORWARD_SAMPLES_BEFORE_EVALUATION,
         }
         history.append(row)
         append_jsonl(curve_path, row)
@@ -599,13 +687,84 @@ def main() -> int:
         if epoch % int(cfg["checkpoint_every_epochs"]) == 0 or epoch == int(cfg["epochs"]):
             save_checkpoint(run_dir / f"epoch{epoch:03d}.pt", model, optimizer, epoch, contract, prepared)
         atomic_json(report_dir / "status.json", {"status": "training", **row})
-        print(json.dumps({
-            "epoch": epoch,
-            "train_loss": metrics["loss"],
-            "train_acc_all": metrics["acc_all"],
-            "lr": lr,
-            "elapsed_seconds": row["elapsed_seconds"],
-        }, sort_keys=True), flush=True)
+        print(
+            json.dumps(
+                {
+                    "epoch": epoch,
+                    "train_loss": metrics["loss"],
+                    "train_acc_all": metrics["acc_all"],
+                    "lr": lr,
+                    "elapsed_seconds": row["elapsed_seconds"],
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+    return history, started
+
+
+def write_predictions(path: Path, predictions: list[dict[str, Any]]) -> None:
+    """Write endpoint predictions without allowing accidental overwrites."""
+    with path.open("x", encoding="utf-8") as stream:
+        for row in predictions:
+            stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n")
+
+
+def build_result(
+    model: D095HybridClassifier,
+    cfg: Config,
+    history: list[dict[str, Any]],
+    test_metrics: dict[str, Any],
+    started: float,
+    microbatch: int,
+    run_dir: Path,
+    prediction_path: Path,
+    contract: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the final result record after the single endpoint evaluation."""
+    return {
+        "status": "complete",
+        "subject": EXPECTED_SUBJECT,
+        "epochs": cfg["epochs"],
+        "final_train": history[-1]["train"],
+        "test": test_metrics,
+        "elapsed_seconds": time.perf_counter() - started,
+        "parameters": parameter_counts(model),
+        "microbatch": microbatch,
+        "checkpoint": workspace_relative(run_dir / f"epoch{int(cfg['epochs']):03d}.pt"),
+        "predictions": workspace_relative(prediction_path),
+        "contract": contract,
+        "selection": cfg["selection"],
+    }
+
+
+def main() -> int:
+    args = parse_args()
+
+    config_path = args.config.resolve()
+    cfg = load_config(config_path)
+    device = configure_cuda(cfg)
+    run_dir, report_dir = prepare_output_dirs(cfg)
+
+    coordinates, coordinate_record = load_coordinates(cfg)
+    microbatch_record = probe_microbatch(coordinates, cfg, device)
+    set_seed(cfg["seed"])
+    model = build_model(coordinates, cfg, device)
+    prepared = prepare_data(cfg, model)
+    split = validate_split(prepared)
+    contract = build_contract(cfg, config_path, coordinate_record, split)
+    preflight = build_preflight(
+        cfg, model, prepared, coordinate_record, split, contract, microbatch_record
+    )
+    atomic_json(report_dir / "preflight.json", preflight)
+
+    microbatch = int(microbatch_record["microbatch"])
+    if args.smoke:
+        return run_smoke(model, prepared, cfg, device, microbatch, report_dir)
+
+    history, started = train_model(
+        model, prepared, cfg, device, microbatch, run_dir, report_dir, contract
+    )
 
     test_metrics, predictions = evaluate_test_once(
         model,
@@ -618,23 +777,18 @@ def main() -> int:
         microbatch,
     )
     prediction_path = run_dir / "test_predictions.jsonl"
-    with prediction_path.open("x", encoding="utf-8") as stream:
-        for row in predictions:
-            stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n")
-    result = {
-        "status": "complete",
-        "subject": 0,
-        "epochs": cfg["epochs"],
-        "final_train": history[-1]["train"],
-        "test": test_metrics,
-        "elapsed_seconds": time.perf_counter() - started,
-        "parameters": parameter_counts(model),
-        "microbatch": microbatch,
-        "checkpoint": workspace_relative(run_dir / f"epoch{int(cfg['epochs']):03d}.pt"),
-        "predictions": workspace_relative(prediction_path),
-        "contract": contract,
-        "selection": cfg["selection"],
-    }
+    write_predictions(prediction_path, predictions)
+    result = build_result(
+        model,
+        cfg,
+        history,
+        test_metrics,
+        started,
+        microbatch,
+        run_dir,
+        prediction_path,
+        contract,
+    )
     atomic_json(run_dir / "result.json", result)
     atomic_json(report_dir / "status.json", result)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)

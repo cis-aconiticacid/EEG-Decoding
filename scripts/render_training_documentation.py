@@ -9,6 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAINING_ROOT = PROJECT_ROOT / "Training"
+CUSTOM_ARCHITECTURE_IDS = {"D-095"}
 
 
 @dataclass(frozen=True)
@@ -296,7 +297,12 @@ def write_experiment(experiment_id: str, experiment: Experiment) -> None:
         if not (directory / path).is_file():
             raise FileNotFoundError(directory / path)
 
-    (directory / "ARCHITECTURE.tex").write_text(diagram_tex(experiment_id, experiment), encoding="utf-8")
+    if experiment_id not in CUSTOM_ARCHITECTURE_IDS:
+        (directory / "ARCHITECTURE.tex").write_text(
+            diagram_tex(experiment_id, experiment), encoding="utf-8"
+        )
+    elif not (directory / "ARCHITECTURE.tex").is_file():
+        raise FileNotFoundError(directory / "ARCHITECTURE.tex")
     render_tex(directory / "ARCHITECTURE.tex", directory / "architecture.png")
 
     kind_note = (
@@ -333,9 +339,13 @@ Data, generated runs, and checkpoints are intentionally excluded from the public
         encoding="utf-8",
     )
 
-    pipeline = "\n".join(f"{index}. {node.replace(chr(10), ' — ')}" for index, node in enumerate(experiment.nodes, 1))
-    (directory / "ARCHITECTURE.md").write_text(
-        f"""# {experiment_id} Architecture
+    if experiment_id not in CUSTOM_ARCHITECTURE_IDS:
+        pipeline = "\n".join(
+            f"{index}. {node.replace(chr(10), ' — ')}"
+            for index, node in enumerate(experiment.nodes, 1)
+        )
+        (directory / "ARCHITECTURE.md").write_text(
+            f"""# {experiment_id} Architecture
 
 ![{experiment_id} architecture](architecture.png)
 
@@ -355,8 +365,10 @@ The image above is rendered from [`ARCHITECTURE.tex`](ARCHITECTURE.tex).
 
 {links(experiment.source)}
 """,
-        encoding="utf-8",
-    )
+            encoding="utf-8",
+        )
+    elif not (directory / "ARCHITECTURE.md").is_file():
+        raise FileNotFoundError(directory / "ARCHITECTURE.md")
 
     result_lines = "\n".join(f"- {item}" for item in experiment.results)
     (directory / "RESULTS_ANALYSIS.md").write_text(
