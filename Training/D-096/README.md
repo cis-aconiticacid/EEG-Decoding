@@ -8,7 +8,7 @@ Replace D-095's scalar frequency gate with directional cross-attention while pre
 - Objective: Ordinary 80-way cross-entropy without label smoothing.
 - Subject scope: Subject 0 only.
 - Temporal-effect control: Not excluded; the first 30 source-order images per class train the model and the last 20 form the official test.
-- Status: Implementation validated locally; A100 training result pending.
+- Status: One fixed 100-epoch A100 run completed; test accuracy was 46.8125% (749/1600).
 
 ## Cross-attention contract
 

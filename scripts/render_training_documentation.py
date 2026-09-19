@@ -225,11 +225,11 @@ EXPERIMENTS: dict[str, Experiment] = {
         "Ordinary 80-way cross-entropy without label smoothing.",
         "Subject 0 only.",
         "Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test.",
-        "Implementation validated locally; A100 training result pending.",
+        "One fixed 100-epoch A100 run completed; test accuracy was 46.8125% (749/1600).",
         ("EEG 62 x 400\n40--440 ms", "Waveform and aligned\n12--80-Hz frequency tokens", "Position-aware cross-attention\nwaveform queries frequency", "4 temporal/spatial\nattention blocks", "Electrode pooling\n3072-to-80 classifier"),
         ("model.py", "run.py", "config/config.json"),
-        ("Local unit and shape validation is complete; the A100 endpoint is pending.",),
-        "The architecture preserves separate signal streams until directional cross-attention; attention weights remain routing diagnostics rather than causal attribution.",
+        ("The seed-17 run reached 100% training accuracy and 46.8125% official test accuracy (749/1600) in 304.704 seconds.", "Mean attention entropy was 96.40% of the maximum log(16), and mean diagonal mass was 0.06277, close to the uniform 1/16 reference.", "D-096 was 4.625 percentage points above D-095 unified192 but 1.875 points below D-095 postfusion192; all are single-seed observations."),
+        "The architecture preserves separate signal streams until directional cross-attention, but the nearly uniform averaged routing statistics show little time-selective alignment. Attention weights remain routing diagnostics rather than causal attribution.",
     ),
 }
 

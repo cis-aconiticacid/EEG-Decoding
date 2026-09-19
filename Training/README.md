@@ -22,7 +22,7 @@ Every numbered directory is a self-contained public experiment record with Engli
 | [D-093](D-093/README.md) | Stage-1 Classification Baseline | 80-way cross-entropy with label smoothing 0.05. | Subject 0 only. | Not excluded: 27/3 development trials are drawn from the first 30, followed by refit on all 30 and one test on the last 20. | Completed with one official test evaluation. |
 | [D-094](D-094/README.md) | Multi-Scale Temporal/Spatial CNN | 80-way cross-entropy with label smoothing 0.05. | Subject 0 only. | Development only: 27/3 trials from the first 30; the official last 20 receive zero classifier forwards. | Development run completed; official test remains sealed. |
 | [D-095](D-095/README.md) | Hybrid Temporal/Spatial Classifier | Ordinary 80-way cross-entropy without label smoothing. | Subject 0 only. | Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test. | Fixed 100-epoch baseline and ablations completed. |
-| [D-096](D-096/README.md) | Position-Aware Waveform/Frequency Cross-Attention | Ordinary 80-way cross-entropy without label smoothing. | Subject 0 only. | Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test. | Implementation validated locally; A100 training result pending. |
+| [D-096](D-096/README.md) | Position-Aware Waveform/Frequency Cross-Attention | Ordinary 80-way cross-entropy without label smoothing. | Subject 0 only. | Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test. | One fixed 100-epoch A100 run completed; test accuracy 46.8125% (749/1600). |
 
 ## Maintenance
 
