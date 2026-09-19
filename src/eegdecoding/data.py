@@ -117,6 +117,17 @@ def ensure_archive(name: str) -> Path:
     return path
 
 
+def verify_archive(name: str) -> Path:
+    """Verify an existing canonical archive without downloading a missing file."""
+    if name not in ASSETS:
+        raise ValueError(f"Unknown EEG archive: {name}")
+    path = default_data_path(name)
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    _verify(path, ASSETS[name])
+    return path
+
+
 def _resolve_archive_path(path: str | Path) -> Path:
     """Resolve known archive names to the project ``data/`` directory."""
     candidate = Path(path)

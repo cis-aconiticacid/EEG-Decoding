@@ -1,6 +1,6 @@
 # Brainstorm: EEG Decoding Experiments
 
-This repository is the public, English-language record for a numbered sequence of EEG-ImageNet training and diagnostic experiments. Start with the [Training experiment index](Training/README.md); the current maintained model is [D-095](Training/D-095/README.md).
+This repository is the public, English-language record for a numbered sequence of EEG-ImageNet training and diagnostic experiments. Start with the [Training experiment index](Training/README.md); the current maintained model is [D-096](Training/D-096/README.md).
 
 ## Repository layout
 
@@ -35,7 +35,7 @@ Each public `Training/D-###/` or `Training/A-###/` directory contains:
 
 ## Data behavior
 
-All shared EEG inputs resolve from the repository-level `data/` directory. The common loader in [`src/eegdecoding/data.py`](src/eegdecoding/data.py) downloads a missing official EEG-ImageNet archive into `data/`, 
+All shared EEG inputs resolve from the repository-level `data/` directory. The common loader in [`src/eegdecoding/data.py`](src/eegdecoding/data.py) downloads a missing official EEG-ImageNet archive into `data/` and verifies its byte length and SHA-256 digest. For an explicit setup step, run `python scripts/download_eeg_imagenet.py --part 1`; use `--part all` for both archives or `--verify-only` to check existing files without downloading.
 ## Checkpoints
 
 Checkpoints are intentionally not published. Store locally supplied weights under `checkpoints/D-###/`, matching the experiment number. Documentation names the expected experiment directory but does not link to absent local files.

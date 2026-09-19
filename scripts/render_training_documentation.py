@@ -9,7 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAINING_ROOT = PROJECT_ROOT / "Training"
-CUSTOM_ARCHITECTURE_IDS = {"D-095"}
+CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096"}
 
 
 @dataclass(frozen=True)
@@ -219,6 +219,18 @@ EXPERIMENTS: dict[str, Experiment] = {
         ("Recorded test accuracy: 42.188% for unified192, 45.875% with the 18--28 Hz exclusion, 14.750% without the frequency branch, and 48.688% with the optional post-fusion projection.", "All reported runs used one seed and reached 100% training accuracy."),
         "The projection-enabled variant has the highest recorded score, but single-seed ablations do not establish a robust causal effect.",
     ),
+    "D-096": Experiment(
+        "Position-Aware Waveform/Frequency Cross-Attention",
+        "Replace D-095's scalar frequency gate with directional, position-aware cross-attention.",
+        "Ordinary 80-way cross-entropy without label smoothing.",
+        "Subject 0 only.",
+        "Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test.",
+        "Implementation validated locally; A100 training result pending.",
+        ("EEG 62 x 400\n40--440 ms", "Waveform and aligned\n12--80-Hz frequency tokens", "Position-aware cross-attention\nwaveform queries frequency", "4 temporal/spatial\nattention blocks", "Electrode pooling\n3072-to-80 classifier"),
+        ("model.py", "run.py", "config/config.json"),
+        ("Local unit and shape validation is complete; the A100 endpoint is pending.",),
+        "The architecture preserves separate signal streams until directional cross-attention; attention weights remain routing diagnostics rather than causal attribution.",
+    ),
 }
 
 
@@ -411,7 +423,7 @@ Every numbered directory is a self-contained public experiment record with Engli
         encoding="utf-8",
     )
     (TRAINING_ROOT / "CURRENT.md").write_text(
-        "# Current Experiment\n\nThe current maintained model is [D-095: Hybrid Temporal/Spatial Classifier](D-095/README.md).\n",
+        "# Current Experiment\n\nThe current maintained model is [D-096: Position-Aware Waveform/Frequency Cross-Attention](D-096/README.md).\n",
         encoding="utf-8",
     )
 
