@@ -628,7 +628,7 @@ def run_smoke(
         "cross_attention_residual_scale_after_first_update": float(
             model.cross_modal_fusion.residual_scale.detach()
         ),
-        "cross_attention_row_sum_max_error": float(
+        "train_mode_cross_attention_row_sum_max_error_after_dropout": float(
             (cross_attention.detach().float().sum(-1) - 1.0).abs().max()
         ),
         "spatial_weight_sum_max_error": float(
