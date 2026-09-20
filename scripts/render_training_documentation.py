@@ -9,7 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAINING_ROOT = PROJECT_ROOT / "Training"
-CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096", "D-097", "D-098"}
+CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096", "D-097", "D-098", "D-099"}
 
 
 @dataclass(frozen=True)
@@ -255,6 +255,18 @@ EXPERIMENTS: dict[str, Experiment] = {
         ("All sixteen participants use the same seed, optimizer, architecture, and fixed epoch budget.", "Participants 2 and 12 are missing one and two complete classes in the verified official archives and are evaluated on 79 and 78 available classes.", "Per-participant and aggregate metrics are recorded after all endpoint runs complete."),
         "These are participant-specific single-seed models. Across-participant dispersion does not replace repeated-seed uncertainty.",
     ),
+    "D-099": Experiment(
+        "Participant 12 Full-Frequency Control",
+        "Repeat the D-098 participant-12 model while restoring all retained 12--80 Hz frequency bins.",
+        "Ordinary 80-way cross-entropy without label smoothing.",
+        "Participant 12 only; the official archive contains 78 available classes.",
+        "The first 30 source-order images per available class train the model; the remaining 20 form the official test.",
+        "The fixed epoch-100 endpoint reached 17.8846%; retrospective checkpoint comparison peaked at 17.9487% at epoch 50.",
+        ("Participant-12 EEG\n62 x 400", "Waveform + all 17\nfrequency bins", "Position-aware cross-attention", "4 temporal/spatial\nattention blocks", "80-class endpoint"),
+        ("../D-098/model.py", "run.py", "config/config.json"),
+        ("Only the below-25-Hz frequency mask changes relative to D-098 participant 12.", "Full frequency improves accuracy at all four saved checkpoints.", "Epoch 50 is selected retrospectively on the test set and is not an untouched held-out estimate."),
+        "This is a single-seed participant-specific control. The repeated test-set checkpoint comparison is exploratory.",
+    ),
 }
 
 
@@ -453,7 +465,7 @@ Every numbered directory is a self-contained public experiment record with Engli
         encoding="utf-8",
     )
     (TRAINING_ROOT / "CURRENT.md").write_text(
-        "# Current Experiment\n\nThe current maintained model is [D-098: One Independent Cross-Attention Model per Participant](D-098/README.md).\n",
+        "# Current Experiment\n\nThe current maintained experiment is [D-099: Participant 12 Full-Frequency Control](D-099/README.md).\n",
         encoding="utf-8",
     )
 

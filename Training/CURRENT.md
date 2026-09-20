@@ -1,3 +1,3 @@
 # Current Experiment
 
-The current maintained model is [D-098: One Independent Cross-Attention Model per Participant](D-098/README.md).
+The current maintained experiment is [D-099: Participant 12 Full-Frequency Control](D-099/README.md).
