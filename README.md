@@ -1,6 +1,6 @@
 # Brainstorm: EEG Decoding Experiments
 
-This repository is the public, English-language record for a numbered sequence of EEG-ImageNet training and diagnostic experiments. Start with the [Training experiment index](Training/README.md); the current maintained model is [D-097](Training/D-097/README.md).
+This repository is the public, English-language record for a numbered sequence of EEG-ImageNet training and diagnostic experiments. Start with the [Training experiment index](Training/README.md); the current maintained model is [D-098](Training/D-098/README.md).
 
 ## Repository layout
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAINING_ROOT = PROJECT_ROOT / "Training"
-CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096", "D-097"}
+CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096", "D-097", "D-098"}
 
 
 @dataclass(frozen=True)
@@ -243,6 +243,18 @@ EXPERIMENTS: dict[str, Experiment] = {
         ("All groups retain position in Q/K; only the post-cross z_s+P injection is toggled.", "The frequency factor zeros 15.625, 19.53125, and 23.4375 Hz bins before frequency projection.", "The four one-seed endpoint metrics are reported together with descriptive main effects and interaction."),
         "This is a controlled implementation ablation within D-096; it does not establish a general causal effect beyond the fixed subject, split, seed, and budget.",
     ),
+    "D-098": Experiment(
+        "One Independent Cross-Attention Model per Participant",
+        "Train the D-097 winning architecture independently for all sixteen EEG-ImageNet participants.",
+        "Ordinary 80-way cross-entropy without label smoothing.",
+        "Participants 0--15, with one independently initialized model per participant.",
+        "The first 30 source-order images per available class train each participant model; the remaining 20 form its one-time endpoint test.",
+        "All sixteen fixed 100-epoch A100 runs completed; mean participant accuracy is 37.0685% and pooled sample accuracy is 37.1026%.",
+        ("Per-participant EEG\n62 x 400", "Waveform + masked\nfrequency tokens", "Position-aware cross-attention", "4 temporal/spatial\nattention blocks", "Independent checkpoint\nper participant"),
+        ("model.py", "run.py", "config/config.json"),
+        ("All sixteen participants use the same seed, optimizer, architecture, and fixed epoch budget.", "Participants 2 and 12 are missing one and two complete classes in the verified official archives and are evaluated on 79 and 78 available classes.", "Per-participant and aggregate metrics are recorded after all endpoint runs complete."),
+        "These are participant-specific single-seed models. Across-participant dispersion does not replace repeated-seed uncertainty.",
+    ),
 }
 
 
@@ -441,7 +453,7 @@ Every numbered directory is a self-contained public experiment record with Engli
         encoding="utf-8",
     )
     (TRAINING_ROOT / "CURRENT.md").write_text(
-        "# Current Experiment\n\nThe current maintained model is [D-097: Frequency Mask x Post-Cross-Position Factorial Ablation](D-097/README.md).\n",
+        "# Current Experiment\n\nThe current maintained model is [D-098: One Independent Cross-Attention Model per Participant](D-098/README.md).\n",
         encoding="utf-8",
     )
 
