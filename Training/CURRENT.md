@@ -1,3 +1,3 @@
 # Current Experiment
 
-The current maintained model is [D-096: Position-Aware Waveform/Frequency Cross-Attention](D-096/README.md).
+The current maintained model is [D-097: Frequency Mask x Post-Cross-Position Factorial Ablation](D-097/README.md).

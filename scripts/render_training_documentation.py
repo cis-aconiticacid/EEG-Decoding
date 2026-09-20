@@ -9,7 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAINING_ROOT = PROJECT_ROOT / "Training"
-CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096"}
+CUSTOM_ARCHITECTURE_IDS = {"D-095", "D-096", "D-097"}
 
 
 @dataclass(frozen=True)
@@ -231,6 +231,18 @@ EXPERIMENTS: dict[str, Experiment] = {
         ("The seed-17 run reached 100% training accuracy and 46.8125% official test accuracy (749/1600) in 304.704 seconds.", "Mean attention entropy was 96.40% of the maximum log(16), and mean diagonal mass was 0.06277, close to the uniform 1/16 reference.", "D-096 was 4.625 percentage points above D-095 unified192 but 1.875 points below D-095 postfusion192; all are single-seed observations."),
         "The architecture preserves separate signal streams until directional cross-attention, but the nearly uniform averaged routing statistics show little time-selective alignment. Attention weights remain routing diagnostics rather than causal attribution.",
     ),
+    "D-097": Experiment(
+        "Frequency Mask x Post-Cross-Position Factorial Ablation",
+        "Measure the separate and combined effects of masking retained frequency bins below 25 Hz and removing the post-cross-attention position injection.",
+        "Ordinary 80-way cross-entropy without label smoothing.",
+        "Subject 0 only.",
+        "Not excluded: the first 30 source-order images per class train the model and the last 20 form the official test.",
+        "Four fixed 100-epoch A100 groups use the same seed and training protocol; results are recorded after endpoint completion.",
+        ("EEG 62 x 400\n40--440 ms", "Waveform + aligned\n12--80-Hz tokens", "Factor A: mask bins\nbelow 25 Hz", "Factor B: post-cross\nposition on/off", "Electrode pooling\n3072-to-80 classifier"),
+        ("model.py", "run.py", "config/full_frequency_with_position.json", "config/masked_below25_with_position.json", "config/full_frequency_without_post_cross_position.json", "config/masked_below25_without_post_cross_position.json"),
+        ("All groups retain position in Q/K; only the post-cross z_s+P injection is toggled.", "The frequency factor zeros 15.625, 19.53125, and 23.4375 Hz bins before frequency projection.", "The four one-seed endpoint metrics are reported together with descriptive main effects and interaction."),
+        "This is a controlled implementation ablation within D-096; it does not establish a general causal effect beyond the fixed subject, split, seed, and budget.",
+    ),
 }
 
 
@@ -423,7 +435,7 @@ Every numbered directory is a self-contained public experiment record with Engli
         encoding="utf-8",
     )
     (TRAINING_ROOT / "CURRENT.md").write_text(
-        "# Current Experiment\n\nThe current maintained model is [D-096: Position-Aware Waveform/Frequency Cross-Attention](D-096/README.md).\n",
+        "# Current Experiment\n\nThe current maintained model is [D-097: Frequency Mask x Post-Cross-Position Factorial Ablation](D-097/README.md).\n",
         encoding="utf-8",
     )
 
