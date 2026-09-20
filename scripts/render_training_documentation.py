@@ -329,14 +329,15 @@ def write_experiment(experiment_id: str, experiment: Experiment) -> None:
         raise FileNotFoundError(directory / "ARCHITECTURE.tex")
     render_tex(directory / "ARCHITECTURE.tex", directory / "architecture.png")
 
-    kind_note = (
-        "`A` stands for **Analysis**: this numbered record evaluates diagnostic structure "
-        "in EEG features rather than training a neural decoding model.\n\n"
-        if experiment_id.startswith("A-")
-        else ""
-    )
-    (directory / "README.md").write_text(
-        f"""# {experiment_id}: {experiment.title}
+    if experiment_id not in CUSTOM_ARCHITECTURE_IDS:
+        kind_note = (
+            "`A` stands for **Analysis**: this numbered record evaluates diagnostic structure "
+            "in EEG features rather than training a neural decoding model.\n\n"
+            if experiment_id.startswith("A-")
+            else ""
+        )
+        (directory / "README.md").write_text(
+            f"""# {experiment_id}: {experiment.title}
 
 {kind_note}{experiment.purpose}
 
@@ -360,8 +361,10 @@ def write_experiment(experiment_id: str, experiment: Experiment) -> None:
 
 Data, generated runs, and checkpoints are intentionally excluded from the public repository. Training entry points resolve shared inputs from the repository-level `data/` directory and download the official EEG archives when they are absent.
 """,
-        encoding="utf-8",
-    )
+            encoding="utf-8",
+        )
+    elif not (directory / "README.md").is_file():
+        raise FileNotFoundError(directory / "README.md")
 
     if experiment_id not in CUSTOM_ARCHITECTURE_IDS:
         pipeline = "\n".join(
@@ -394,9 +397,10 @@ The image above is rendered from [`ARCHITECTURE.tex`](ARCHITECTURE.tex).
     elif not (directory / "ARCHITECTURE.md").is_file():
         raise FileNotFoundError(directory / "ARCHITECTURE.md")
 
-    result_lines = "\n".join(f"- {item}" for item in experiment.results)
-    (directory / "RESULTS_ANALYSIS.md").write_text(
-        f"""# {experiment_id} Results Analysis
+    if experiment_id not in CUSTOM_ARCHITECTURE_IDS:
+        result_lines = "\n".join(f"- {item}" for item in experiment.results)
+        (directory / "RESULTS_ANALYSIS.md").write_text(
+            f"""# {experiment_id} Results Analysis
 
 ## Recorded outcome
 
@@ -410,8 +414,10 @@ The image above is rendered from [`ARCHITECTURE.tex`](ARCHITECTURE.tex).
 
 Raw EEG data, generated run directories, and model checkpoints are not published in this repository. When a collaborator needs a checkpoint, it should be supplied separately under `checkpoints/{experiment_id}/`. The metrics above are retained as the experiment record; this documentation pass did not rerun training or evaluation.
 """,
-        encoding="utf-8",
-    )
+            encoding="utf-8",
+        )
+    elif not (directory / "RESULTS_ANALYSIS.md").is_file():
+        raise FileNotFoundError(directory / "RESULTS_ANALYSIS.md")
 
 
 def write_indexes() -> None:
@@ -431,7 +437,7 @@ Every numbered directory is a self-contained public experiment record with Engli
 |---|---|---|---|---|---|
 """
         + "\n".join(rows)
-        + "\n\n## Maintenance\n\nThe repository-level [README](../README.md) defines ownership, path, language, data, checkpoint, and documentation rules. Run `python scripts/render_training_documentation.py` after changing this registry or any architecture diagram.\n",
+        + "\n\n## Maintenance\n\nThe repository-level [README](../README.md) defines ownership, path, language, data, checkpoint, and documentation rules. Run `python scripts/render_training_documentation.py` after changing this registry or any architecture diagram.\n\n## Regulation rule\n\nIf you are an AI and working on this repo, Being sure that you follows the ../README.md.\n",
         encoding="utf-8",
     )
     (TRAINING_ROOT / "CURRENT.md").write_text(
